@@ -3,7 +3,7 @@ package com.guijose.jarvis;
 import android.Manifest;
 import android.content.Intent;
 import android.graphics.Color;
-import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -31,7 +31,8 @@ public class MainActivity extends AppCompatActivity {
             setContentView(ouvirButton);
 
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO}, 1);
+                    new String[]{Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.POST_NOTIFICATIONS}, 1);
 
             textToSpeech = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
@@ -60,13 +61,18 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void onEvent(int eventType, Bundle params) {}
             });
 
-            ouvirButton.setOnClickListener(v -> {
-                Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR");
-                speechRecognizer.startListening(intent);
-            });
+            ouvirButton.setOnClickListener(v -> iniciarEscuta());
+
+            Intent serviceIntent = new Intent(this, ClapService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+
+            if (getIntent().getBooleanExtra("ativar_microfone", false)) {
+                iniciarEscuta();
+            }
 
         } catch (Exception e) {
             TextView erro = new TextView(this);
@@ -77,6 +83,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void iniciarEscuta() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR");
+        speechRecognizer.startListening(intent);
+    }
+
     private void processCommand(String texto) {
         if (texto.contains("google")) {
             Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -84,10 +98,9 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
             falar("Abrindo o Google");
         } else if (texto.contains("wifi") || texto.contains("wi-fi")) {
-            WifiManager wifiManager = (WifiManager) getApplicationContext()
-                    .getSystemService(WIFI_SERVICE);
-            wifiManager.setWifiEnabled(true);
-            falar("Ligando o Wi-Fi");
+            Intent wifiIntent = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
+            startActivity(wifiIntent);
+            falar("Abrindo o Wi-Fi");
         } else if (texto.contains("bluetooth")) {
             Intent intent = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
             startActivity(intent);
