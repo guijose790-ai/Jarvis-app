@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClapService extends Service {
 
@@ -17,6 +18,15 @@ public class ClapService extends Service {
     private static final int THRESHOLD = 3000;
     private NotificationManager notificationManager;
     private static final String CANAL_ID = "jarvis_canal";
+    private static final AtomicBoolean pausado = new AtomicBoolean(false);
+
+    public static void pausarEscuta() {
+        pausado.set(true);
+    }
+
+    public static void retomarEscuta() {
+        pausado.set(false);
+    }
 
     @Override
     public void onCreate() {
@@ -63,28 +73,42 @@ public class ClapService extends Service {
             return;
         }
 
-        AudioRecord recorder;
-        try {
-            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                    SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT, bufferSize);
-        } catch (SecurityException e) {
-            atualizarNotificacao("Erro: sem permissao de microfone");
-            return;
-        }
-
-        if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
-            atualizarNotificacao("Erro: AudioRecord nao inicializou");
-            return;
-        }
-
+        AudioRecord recorder = null;
         short[] buffer = new short[bufferSize];
-        recorder.startRecording();
-
         long ultimaAtualizacao = 0;
         long maiorMedia = 0;
 
         while (escutando) {
+
+            if (pausado.get()) {
+                if (recorder != null) {
+                    recorder.stop();
+                    recorder.release();
+                    recorder = null;
+                    atualizarNotificacao("Pausado (usando microfone)");
+                }
+                try { Thread.sleep(300); } catch (Exception ignored) {}
+                continue;
+            }
+
+            if (recorder == null) {
+                try {
+                    recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                            SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
+                            AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+                    if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
+                        atualizarNotificacao("Erro: AudioRecord nao iniciou");
+                        recorder = null;
+                        try { Thread.sleep(1000); } catch (Exception ignored) {}
+                        continue;
+                    }
+                    recorder.startRecording();
+                } catch (SecurityException e) {
+                    atualizarNotificacao("Erro: sem permissao de microfone");
+                    return;
+                }
+            }
+
             int lidos = recorder.read(buffer, 0, bufferSize);
             long soma = 0;
             for (int i = 0; i < lidos; i++) {
@@ -111,8 +135,10 @@ public class ClapService extends Service {
             }
         }
 
-        recorder.stop();
-        recorder.release();
+        if (recorder != null) {
+            recorder.stop();
+            recorder.release();
+        }
     }
 
     @Override
