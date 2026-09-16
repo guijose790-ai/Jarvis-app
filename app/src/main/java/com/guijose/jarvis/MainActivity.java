@@ -12,6 +12,7 @@ import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -35,6 +36,9 @@ public class MainActivity extends AppCompatActivity {
             textToSpeech = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
                     textToSpeech.setLanguage(new Locale("pt", "BR"));
+                } else {
+                    Toast.makeText(MainActivity.this,
+                            "Erro ao iniciar TextToSpeech: " + status, Toast.LENGTH_LONG).show();
                 }
             });
 
@@ -54,7 +58,12 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void onRmsChanged(float rmsdB) {}
                 @Override public void onBufferReceived(byte[] buffer) {}
                 @Override public void onEndOfSpeech() {}
-                @Override public void onError(int error) {}
+
+                @Override public void onError(int error) {
+                    Toast.makeText(MainActivity.this,
+                            "Erro no reconhecimento: " + error, Toast.LENGTH_LONG).show();
+                }
+
                 @Override public void onPartialResults(Bundle partialResults) {}
                 @Override public void onEvent(int eventType, Bundle params) {}
             });
