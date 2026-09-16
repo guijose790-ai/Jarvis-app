@@ -23,13 +23,14 @@ public class MainActivity extends AppCompatActivity {
 
     private SpeechRecognizer speechRecognizer;
     private TextToSpeech textToSpeech;
+    private Button ouvirButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         try {
-            Button ouvirButton = new Button(this);
+            ouvirButton = new Button(this);
             ouvirButton.setText("Ouvir");
             setContentView(ouvirButton);
 
@@ -45,7 +46,13 @@ public class MainActivity extends AppCompatActivity {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
             speechRecognizer.setRecognitionListener(new RecognitionListener() {
                 @Override
+                public void onReadyForSpeech(Bundle params) {
+                    ouvirButton.setText("Ouvindo...");
+                }
+
+                @Override
                 public void onResults(Bundle results) {
+                    ouvirButton.setText("Ouvir");
                     ArrayList<String> matches = results.getStringArrayList(
                             SpeechRecognizer.RESULTS_RECOGNITION);
                     if (matches != null && matches.size() > 0) {
@@ -53,13 +60,13 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                @Override public void onReadyForSpeech(Bundle params) {}
                 @Override public void onBeginningOfSpeech() {}
                 @Override public void onRmsChanged(float rmsdB) {}
                 @Override public void onBufferReceived(byte[] buffer) {}
                 @Override public void onEndOfSpeech() {}
 
                 @Override public void onError(int error) {
+                    ouvirButton.setText("Ouvir");
                     Toast.makeText(MainActivity.this,
                             "Erro no reconhecimento: " + error, Toast.LENGTH_LONG).show();
                 }
