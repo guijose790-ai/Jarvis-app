@@ -2,6 +2,7 @@ package com.guijose.jarvis;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -13,6 +14,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -29,10 +31,6 @@ public class MainActivity extends AppCompatActivity {
             Button ouvirButton = new Button(this);
             ouvirButton.setText("Ouvir");
             setContentView(ouvirButton);
-
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO,
-                            Manifest.permission.POST_NOTIFICATIONS}, 1);
 
             textToSpeech = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
@@ -63,12 +61,7 @@ public class MainActivity extends AppCompatActivity {
 
             ouvirButton.setOnClickListener(v -> iniciarEscuta());
 
-            Intent serviceIntent = new Intent(this, ClapService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent);
-            } else {
-                startService(serviceIntent);
-            }
+            verificarPermissoesEIniciarServico();
 
             if (getIntent().getBooleanExtra("ativar_microfone", false)) {
                 iniciarEscuta();
@@ -80,6 +73,36 @@ public class MainActivity extends AppCompatActivity {
             erro.setTextColor(Color.RED);
             erro.setPadding(20, 100, 20, 20);
             setContentView(erro);
+        }
+    }
+
+    private void verificarPermissoesEIniciarServico() {
+        boolean temAudio = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+
+        if (temAudio) {
+            iniciarServico();
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            iniciarServico();
+        }
+    }
+
+    private void iniciarServico() {
+        Intent serviceIntent = new Intent(this, ClapService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
         }
     }
 
