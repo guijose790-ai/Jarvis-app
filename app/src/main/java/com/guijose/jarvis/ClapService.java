@@ -14,44 +14,75 @@ public class ClapService extends Service {
 
     private boolean escutando = false;
     private static final int SAMPLE_RATE = 44100;
-    private static final int THRESHOLD = 15000;
+    private static final int THRESHOLD = 3000;
+    private NotificationManager notificationManager;
+    private static final String CANAL_ID = "jarvis_canal";
 
     @Override
     public void onCreate() {
         super.onCreate();
-        criarNotificacao();
+        criarNotificacao("Iniciando...");
         escutando = true;
         new Thread(this::monitorarSom).start();
     }
 
-    private void criarNotificacao() {
-        String canalId = "jarvis_canal";
+    private void criarNotificacao(String texto) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel canal = new NotificationChannel(
-                    canalId, "Jarvis Ativo", NotificationManager.IMPORTANCE_LOW);
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(canal);
+                    CANAL_ID, "Jarvis Ativo", NotificationManager.IMPORTANCE_LOW);
+            notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(canal);
         }
 
-        Notification notificacao = new NotificationCompat.Builder(this, canalId)
+        Notification notificacao = new NotificationCompat.Builder(this, CANAL_ID)
                 .setContentTitle("Jarvis")
-                .setContentText("Escutando por palmas...")
+                .setContentText(texto)
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .build();
 
         startForeground(1, notificacao);
     }
 
+    private void atualizarNotificacao(String texto) {
+        if (notificationManager != null) {
+            Notification notificacao = new NotificationCompat.Builder(this, CANAL_ID)
+                    .setContentTitle("Jarvis")
+                    .setContentText(texto)
+                    .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+                    .build();
+            notificationManager.notify(1, notificacao);
+        }
+    }
+
     private void monitorarSom() {
         int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
 
-        AudioRecord recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+        if (bufferSize <= 0) {
+            atualizarNotificacao("Erro: bufferSize invalido");
+            return;
+        }
+
+        AudioRecord recorder;
+        try {
+            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                    SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+        } catch (SecurityException e) {
+            atualizarNotificacao("Erro: sem permissao de microfone");
+            return;
+        }
+
+        if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
+            atualizarNotificacao("Erro: AudioRecord nao inicializou");
+            return;
+        }
 
         short[] buffer = new short[bufferSize];
         recorder.startRecording();
+
+        long ultimaAtualizacao = 0;
+        long maiorMedia = 0;
 
         while (escutando) {
             int lidos = recorder.read(buffer, 0, bufferSize);
@@ -61,12 +92,22 @@ public class ClapService extends Service {
             }
             long media = lidos > 0 ? soma / lidos : 0;
 
+            if (media > maiorMedia) {
+                maiorMedia = media;
+            }
+
+            long agora = System.currentTimeMillis();
+            if (agora - ultimaAtualizacao > 1000) {
+                atualizarNotificacao("Nivel atual: " + media + " | Pico: " + maiorMedia);
+                ultimaAtualizacao = agora;
+            }
+
             if (media > THRESHOLD) {
                 Intent intent = new Intent(this, MainActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 intent.putExtra("ativar_microfone", true);
                 startActivity(intent);
-                try { Thread.sleep(2000); } catch (Exception ignored) {}
+                try { Thread.sleep(3000); } catch (Exception ignored) {}
             }
         }
 
