@@ -2,23 +2,28 @@ package com.guijose.jarvis;
 
 import android.app.*;
 import android.content.Intent;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClapService extends Service {
 
-    private boolean escutando = false;
-    private static final int SAMPLE_RATE = 44100;
-    private static final int THRESHOLD = 3000;
-    private NotificationManager notificationManager;
     private static final String CANAL_ID = "jarvis_canal";
     private static final AtomicBoolean pausado = new AtomicBoolean(false);
+
+    private SpeechRecognizer speechRecognizer;
+    private Handler handler;
+    private NotificationManager notificationManager;
+    private boolean rodando = false;
 
     public static void pausarEscuta() {
         pausado.set(true);
@@ -31,9 +36,63 @@ public class ClapService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        criarNotificacao("Iniciando...");
-        escutando = true;
-        new Thread(this::monitorarSom).start();
+        criarNotificacao("Aguardando 'Jarvis'...");
+        handler = new Handler(Looper.getMainLooper());
+        rodando = true;
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(new RecognitionListener() {
+            @Override
+            public void onResults(Bundle results) {
+                ArrayList<String> matches = results.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION);
+                if (matches != null && matches.size() > 0) {
+                    String texto = matches.get(0).toLowerCase();
+                    atualizarNotificacao("Ouvi: " + texto);
+                    if (texto.contains("jarvis")) {
+                        Intent intent = new Intent(ClapService.this, MainActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intent.putExtra("ativar_microfone", true);
+                        startActivity(intent);
+                    }
+                }
+                reiniciarEscuta();
+            }
+
+            @Override public void onError(int error) {
+                reiniciarEscuta();
+            }
+
+            @Override public void onReadyForSpeech(Bundle params) {}
+            @Override public void onBeginningOfSpeech() {}
+            @Override public void onRmsChanged(float rmsdB) {}
+            @Override public void onBufferReceived(byte[] buffer) {}
+            @Override public void onEndOfSpeech() {}
+            @Override public void onPartialResults(Bundle partialResults) {}
+            @Override public void onEvent(int eventType, Bundle params) {}
+        });
+
+        iniciarEscutaContinua();
+    }
+
+    private void iniciarEscutaContinua() {
+        if (pausado.get() || !rodando) {
+            handler.postDelayed(this::iniciarEscutaContinua, 500);
+            return;
+        }
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR");
+        try {
+            speechRecognizer.startListening(intent);
+        } catch (Exception e) {
+            handler.postDelayed(this::iniciarEscutaContinua, 1000);
+        }
+    }
+
+    private void reiniciarEscuta() {
+        handler.postDelayed(this::iniciarEscutaContinua, 300);
     }
 
     private void criarNotificacao(String texto) {
@@ -64,87 +123,13 @@ public class ClapService extends Service {
         }
     }
 
-    private void monitorarSom() {
-        int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-
-        if (bufferSize <= 0) {
-            atualizarNotificacao("Erro: bufferSize invalido");
-            return;
-        }
-
-        AudioRecord recorder = null;
-        short[] buffer = new short[bufferSize];
-        long ultimaAtualizacao = 0;
-        long maiorMedia = 0;
-
-        while (escutando) {
-
-            if (pausado.get()) {
-                if (recorder != null) {
-                    recorder.stop();
-                    recorder.release();
-                    recorder = null;
-                    atualizarNotificacao("Pausado (usando microfone)");
-                }
-                try { Thread.sleep(300); } catch (Exception ignored) {}
-                continue;
-            }
-
-            if (recorder == null) {
-                try {
-                    recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                            SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
-                            AudioFormat.ENCODING_PCM_16BIT, bufferSize);
-                    if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
-                        atualizarNotificacao("Erro: AudioRecord nao iniciou");
-                        recorder = null;
-                        try { Thread.sleep(1000); } catch (Exception ignored) {}
-                        continue;
-                    }
-                    recorder.startRecording();
-                } catch (SecurityException e) {
-                    atualizarNotificacao("Erro: sem permissao de microfone");
-                    return;
-                }
-            }
-
-            int lidos = recorder.read(buffer, 0, bufferSize);
-            long soma = 0;
-            for (int i = 0; i < lidos; i++) {
-                soma += Math.abs(buffer[i]);
-            }
-            long media = lidos > 0 ? soma / lidos : 0;
-
-            if (media > maiorMedia) {
-                maiorMedia = media;
-            }
-
-            long agora = System.currentTimeMillis();
-            if (agora - ultimaAtualizacao > 1000) {
-                atualizarNotificacao("Nivel atual: " + media + " | Pico: " + maiorMedia);
-                ultimaAtualizacao = agora;
-            }
-
-            if (media > THRESHOLD) {
-                Intent intent = new Intent(this, MainActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.putExtra("ativar_microfone", true);
-                startActivity(intent);
-                try { Thread.sleep(3000); } catch (Exception ignored) {}
-            }
-        }
-
-        if (recorder != null) {
-            recorder.stop();
-            recorder.release();
-        }
-    }
-
     @Override
     public void onDestroy() {
         super.onDestroy();
-        escutando = false;
+        rodando = false;
+        if (speechRecognizer != null) {
+            speechRecognizer.destroy();
+        }
     }
 
     @Nullable
