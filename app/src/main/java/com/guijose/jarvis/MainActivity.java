@@ -53,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onResults(Bundle results) {
                     ouvirButton.setText("Ouvir");
+                    ClapService.retomarEscuta();
                     ArrayList<String> matches = results.getStringArrayList(
                             SpeechRecognizer.RESULTS_RECOGNITION);
                     if (matches != null && matches.size() > 0) {
@@ -67,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override public void onError(int error) {
                     ouvirButton.setText("Ouvir");
+                    ClapService.retomarEscuta();
                     Toast.makeText(MainActivity.this,
                             "Erro no reconhecimento: " + error, Toast.LENGTH_LONG).show();
                 }
@@ -132,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void iniciarEscuta() {
+        ClapService.pausarEscuta();
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
