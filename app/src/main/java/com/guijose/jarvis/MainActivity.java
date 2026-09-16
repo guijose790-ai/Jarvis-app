@@ -76,6 +76,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent.getBooleanExtra("ativar_microfone", false)) {
+            iniciarEscuta();
+        }
+    }
+
     private void verificarPermissoesEIniciarServico() {
         boolean temAudio = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
