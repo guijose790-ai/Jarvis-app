@@ -197,6 +197,17 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
             falar("Abrindo o Bluetooth");
 
+        } else if (texto.contains("ler mensagem") || texto.contains("ler mensagens")) {
+            String remetente = memoria.getString("ultima_mensagem_remetente", null);
+            String mensagem = memoria.getString("ultima_mensagem_texto", null);
+            String app = memoria.getString("ultima_mensagem_app", "");
+
+            if (remetente != null && mensagem != null) {
+                falar("Última mensagem no " + app + ", de " + remetente + ": " + mensagem);
+            } else {
+                falar("Não há mensagens recentes registradas");
+            }
+
         } else if (texto.contains("alarme")) {
             criarAlarme(texto);
 
