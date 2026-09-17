@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.AlarmClock;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -21,6 +22,8 @@ import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -194,33 +197,13 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
             falar("Abrindo o Bluetooth");
 
+        } else if (texto.contains("alarme")) {
+            criarAlarme(texto);
+
         } else if (texto.contains("aprenda que")) {
             String resto = texto.substring(texto.indexOf("aprenda que") + "aprenda que".length()).trim();
             if (resto.contains(" é ")) {
                 String[] partes = resto.split(" é ", 2);
                 String chave = partes[0].trim();
                 String valor = partes[1].trim();
-                memoria.edit().putString(chave, valor).apply();
-                falar("Entendido. Vou lembrar que " + chave + " é " + valor);
-            } else {
-                falar("Não entendi. Fale assim: aprenda que alguma coisa é outra coisa.");
-            }
-
-        } else if (texto.startsWith("o que é") || texto.startsWith("o que e")) {
-            String chave = texto.replaceFirst("o que (é|e)", "").trim();
-            String valor = memoria.getString(chave, null);
-            if (valor != null) {
-                falar(chave + " é " + valor);
-            } else {
-                falar("Ainda não sei o que é " + chave);
-            }
-
-        } else {
-            falar("Não entendi o comando: " + texto);
-        }
-    }
-
-    private void falar(String texto) {
-        textToSpeech.speak(texto, TextToSpeech.QUEUE_FLUSH, null, null);
-    }
-}
+                m
