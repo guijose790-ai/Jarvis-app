@@ -1,80 +1,107 @@
 package com.guijose.jarvis;
 
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.RadialGradient;
-import android.graphics.Shader;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
-import android.view.animation.LinearInterpolator;
+import java.util.ArrayList;
+import java.util.Random;
 
 public class ParticleView extends View {
 
-    private float anguloBase = 0f;
+    private ArrayList<Particula> particulas = new ArrayList<>();
+    private Paint paint;
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private Random random = new Random();
+    private float nivelVoz = 0f;
     private boolean ouvindo = false;
-    private ValueAnimator animator;
-    private Paint paintParticula;
-    private Paint paintNucleo;
-    private static final int NUM_PARTICULAS = 24;
+
+    private static final int NUM_PARTICULAS = 60;
+
+    private class Particula {
+        float x, y, vx, vy, raio;
+        Particula(float x, float y, float vx, float vy, float raio) {
+            this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.raio = raio;
+        }
+    }
 
     public ParticleView(Context context) {
         super(context);
         setBackgroundColor(Color.BLACK);
+        paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(Color.parseColor("#4DA6FF"));
 
-        paintParticula = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paintParticula.setColor(Color.parseColor("#FFC94D"));
+        post(this::inicializarParticulas);
+        iniciarLoop();
+    }
 
-        paintNucleo = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private void inicializarParticulas() {
+        int largura = getWidth() > 0 ? getWidth() : 1080;
+        int altura = getHeight() > 0 ? getHeight() : 1920;
 
-        animator = ValueAnimator.ofFloat(0f, 360f);
-        animator.setDuration(6000);
-        animator.setRepeatCount(ValueAnimator.INFINITE);
-        animator.setInterpolator(new LinearInterpolator());
-        animator.addUpdateListener(anim -> {
-            anguloBase = (float) anim.getAnimatedValue();
-            invalidate();
-        });
-        animator.start();
+        particulas.clear();
+        for (int i = 0; i < NUM_PARTICULAS; i++) {
+            float x = random.nextFloat() * largura;
+            float y = random.nextFloat() * altura;
+            float vx = (random.nextFloat() - 0.5f) * 4f;
+            float vy = (random.nextFloat() - 0.5f) * 4f;
+            float raio = 4f + random.nextFloat() * 6f;
+            particulas.add(new Particula(x, y, vx, vy, raio));
+        }
     }
 
     public void setOuvindo(boolean valor) {
         ouvindo = valor;
-        animator.setDuration(ouvindo ? 1500 : 6000);
+        if (!valor) nivelVoz = 0f;
+    }
+
+    public void atualizarNivelVoz(float rms) {
+        float normalizado = Math.max(0f, Math.min(1f, (rms + 2f) / 12f));
+        nivelVoz = normalizado;
+    }
+
+    private void iniciarLoop() {
+        Runnable loop = new Runnable() {
+            @Override
+            public void run() {
+                atualizarParticulas();
+                invalidate();
+                handler.postDelayed(this, 16);
+            }
+        };
+        handler.post(loop);
+    }
+
+    private void atualizarParticulas() {
+        int largura = getWidth();
+        int altura = getHeight();
+        if (largura == 0 || altura == 0 || particulas.isEmpty()) return;
+
+        float boost = 1f + (ouvindo ? nivelVoz * 5f : 0f);
+
+        for (Particula p : particulas) {
+            p.x += p.vx * boost;
+            p.y += p.vy * boost;
+
+            if (p.x < 0 || p.x > largura) p.vx *= -1;
+            if (p.y < 0 || p.y > altura) p.vy *= -1;
+
+            p.x = Math.max(0, Math.min(largura, p.x));
+            p.y = Math.max(0, Math.min(altura, p.y));
+        }
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        float cx = getWidth() / 2f;
-        float cy = getHeight() / 2f;
-        float raioBase = Math.min(getWidth(), getHeight()) / 4f;
+        float raioExtra = ouvindo ? nivelVoz * 6f : 0f;
 
-        int corGlow = ouvindo ? Color.parseColor("#FFD966") : Color.parseColor("#FFC94D");
-
-        RadialGradient gradient = new RadialGradient(cx, cy, raioBase * 1.4f,
-                new int[]{corGlow, Color.TRANSPARENT},
-                null, Shader.TileMode.CLAMP);
-        paintNucleo.setShader(gradient);
-        canvas.drawCircle(cx, cy, raioBase * 1.4f, paintNucleo);
-
-        paintParticula.setColor(corGlow);
-        canvas.drawCircle(cx, cy, raioBase * 0.35f, paintParticula);
-
-        for (int i = 0; i < NUM_PARTICULAS; i++) {
-            float anguloParticula = (float) (anguloBase + (360f / NUM_PARTICULAS) * i);
-            double rad = Math.toRadians(anguloParticula);
-
-            float variacao = (i % 3 == 0) ? 1.15f : 1f;
-            float raio = raioBase * variacao;
-
-            float x = (float) (cx + raio * Math.cos(rad));
-            float y = (float) (cy + raio * Math.sin(rad));
-
-            float tamanho = ouvindo ? 8f : 5f;
-            canvas.drawCircle(x, y, tamanho, paintParticula);
+        for (Particula p : particulas) {
+            canvas.drawCircle(p.x, p.y, p.raio + raioExtra, paint);
         }
     }
 }
