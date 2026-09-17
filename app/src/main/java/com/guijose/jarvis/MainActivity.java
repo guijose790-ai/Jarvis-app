@@ -206,4 +206,51 @@ public class MainActivity extends AppCompatActivity {
                 String[] partes = resto.split(" é ", 2);
                 String chave = partes[0].trim();
                 String valor = partes[1].trim();
-                m
+                memoria.edit().putString(chave, valor).apply();
+                falar("Entendido. Vou lembrar que " + chave + " é " + valor);
+            } else {
+                falar("Não entendi. Fale assim: aprenda que alguma coisa é outra coisa.");
+            }
+
+        } else if (texto.startsWith("o que é") || texto.startsWith("o que e")) {
+            String chave = texto.replaceFirst("o que (é|e)", "").trim();
+            String valor = memoria.getString(chave, null);
+            if (valor != null) {
+                falar(chave + " é " + valor);
+            } else {
+                falar("Ainda não sei o que é " + chave);
+            }
+
+        } else {
+            falar("Não entendi o comando: " + texto);
+        }
+    }
+
+    private void criarAlarme(String texto) {
+        Pattern pattern = Pattern.compile("(\\d{1,2})(?:\\s*(?:e|:)\\s*(\\d{1,2}))?\\s*(?:h|horas)?");
+        Matcher matcher = pattern.matcher(texto);
+
+        if (matcher.find()) {
+            int hora = Integer.parseInt(matcher.group(1));
+            int minuto = matcher.group(2) != null ? Integer.parseInt(matcher.group(2)) : 0;
+
+            if (hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59) {
+                Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM);
+                intent.putExtra(AlarmClock.EXTRA_HOUR, hora);
+                intent.putExtra(AlarmClock.EXTRA_MINUTES, minuto);
+                intent.putExtra(AlarmClock.EXTRA_MESSAGE, "Jarvis");
+                intent.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+                startActivity(intent);
+                falar("Alarme definido para " + hora + " horas e " + minuto + " minutos");
+            } else {
+                falar("Não entendi o horário direito");
+            }
+        } else {
+            falar("Não consegui identificar o horário para o alarme");
+        }
+    }
+
+    private void falar(String texto) {
+        textToSpeech.speak(texto, TextToSpeech.QUEUE_FLUSH, null, null);
+    }
+}
