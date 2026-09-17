@@ -11,6 +11,7 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
+import android.speech.tts.Voice;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -38,8 +39,18 @@ public class MainActivity extends AppCompatActivity {
             textToSpeech = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
                     textToSpeech.setLanguage(new Locale("pt", "BR"));
-                    textToSpeech.setPitch(0.75f);
-                    textToSpeech.setSpeechRate(0.95f);
+                    textToSpeech.setPitch(0.6f);
+                    textToSpeech.setSpeechRate(0.9f);
+
+                    for (Voice voz : textToSpeech.getVoices()) {
+                        if (voz.getLocale().getLanguage().equals("pt")
+                                && (voz.getName().toLowerCase().contains("male")
+                                    || voz.getName().toLowerCase().contains("masculin"))) {
+                            textToSpeech.setVoice(voz);
+                            break;
+                        }
+                    }
+
                     textToSpeechPronto = true;
 
                     textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
