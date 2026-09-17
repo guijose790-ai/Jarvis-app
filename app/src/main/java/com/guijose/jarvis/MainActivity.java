@@ -38,6 +38,8 @@ public class MainActivity extends AppCompatActivity {
             textToSpeech = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
                     textToSpeech.setLanguage(new Locale("pt", "BR"));
+                    textToSpeech.setPitch(0.75f);
+                    textToSpeech.setSpeechRate(0.95f);
                     textToSpeechPronto = true;
 
                     textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
