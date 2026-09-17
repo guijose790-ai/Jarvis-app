@@ -2,6 +2,7 @@ package com.guijose.jarvis;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
@@ -175,19 +176,45 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void processCommand(String texto) {
+        SharedPreferences memoria = getSharedPreferences("jarvis_memoria", MODE_PRIVATE);
+
         if (texto.contains("google")) {
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setData(android.net.Uri.parse("https://www.google.com"));
             startActivity(intent);
             falar("Abrindo o Google");
+
         } else if (texto.contains("wifi") || texto.contains("wi-fi")) {
             Intent wifiIntent = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
             startActivity(wifiIntent);
             falar("Abrindo o Wi-Fi");
+
         } else if (texto.contains("bluetooth")) {
             Intent intent = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
             startActivity(intent);
             falar("Abrindo o Bluetooth");
+
+        } else if (texto.contains("aprenda que")) {
+            String resto = texto.substring(texto.indexOf("aprenda que") + "aprenda que".length()).trim();
+            if (resto.contains(" é ")) {
+                String[] partes = resto.split(" é ", 2);
+                String chave = partes[0].trim();
+                String valor = partes[1].trim();
+                memoria.edit().putString(chave, valor).apply();
+                falar("Entendido. Vou lembrar que " + chave + " é " + valor);
+            } else {
+                falar("Não entendi. Fale assim: aprenda que alguma coisa é outra coisa.");
+            }
+
+        } else if (texto.startsWith("o que é") || texto.startsWith("o que e")) {
+            String chave = texto.replaceFirst("o que (é|e)", "").trim();
+            String valor = memoria.getString(chave, null);
+            if (valor != null) {
+                falar(chave + " é " + valor);
+            } else {
+                falar("Ainda não sei o que é " + chave);
+            }
+
         } else {
             falar("Não entendi o comando: " + texto);
         }
