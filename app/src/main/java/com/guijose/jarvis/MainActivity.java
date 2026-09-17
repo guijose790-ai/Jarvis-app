@@ -10,12 +10,14 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -23,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private SpeechRecognizer speechRecognizer;
     private TextToSpeech textToSpeech;
     private ParticleView particleView;
+    private boolean textToSpeechPronto = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +38,23 @@ public class MainActivity extends AppCompatActivity {
             textToSpeech = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
                     textToSpeech.setLanguage(new Locale("pt", "BR"));
+                    textToSpeechPronto = true;
+
+                    textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override public void onStart(String utteranceId) {}
+                        @Override public void onError(String utteranceId) {}
+
+                        @Override
+                        public void onDone(String utteranceId) {
+                            if ("saudacao".equals(utteranceId)) {
+                                iniciarEscuta();
+                            }
+                        }
+                    });
+
+                    if (getIntent().getBooleanExtra("ativar_microfone", false)) {
+                        saudarEEscutar();
+                    }
                 } else {
                     Toast.makeText(MainActivity.this,
                             "Erro ao iniciar TextToSpeech: " + status, Toast.LENGTH_LONG).show();
@@ -67,8 +87,6 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void onError(int error) {
                     particleView.setOuvindo(false);
                     ClapService.retomarEscuta();
-                    Toast.makeText(MainActivity.this,
-                            "Erro no reconhecimento: " + error, Toast.LENGTH_LONG).show();
                 }
 
                 @Override public void onPartialResults(Bundle partialResults) {}
@@ -78,10 +96,6 @@ public class MainActivity extends AppCompatActivity {
             particleView.setOnClickListener(v -> iniciarEscuta());
 
             verificarPermissoesEIniciarServico();
-
-            if (getIntent().getBooleanExtra("ativar_microfone", false)) {
-                iniciarEscuta();
-            }
 
         } catch (Exception e) {
             TextView erro = new TextView(this);
@@ -96,9 +110,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (intent.getBooleanExtra("ativar_microfone", false)) {
-            iniciarEscuta();
+        if (intent.getBooleanExtra("ativar_microfone", false) && textToSpeechPronto) {
+            saudarEEscutar();
         }
+    }
+
+    private void saudarEEscutar() {
+        ClapService.pausarEscuta();
+        HashMap<String, String> params = new HashMap<>();
+        params.put(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "saudacao");
+        textToSpeech.speak("O que deseja, senhor Guilherme?", TextToSpeech.QUEUE_FLUSH, params);
     }
 
     private void verificarPermissoesEIniciarServico() {
