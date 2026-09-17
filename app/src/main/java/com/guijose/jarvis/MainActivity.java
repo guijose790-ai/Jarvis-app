@@ -86,6 +86,11 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 @Override
+                public void onRmsChanged(float rmsdB) {
+                    particleView.atualizarNivelVoz(rmsdB);
+                }
+
+                @Override
                 public void onResults(Bundle results) {
                     particleView.setOuvindo(false);
                     ClapService.retomarEscuta();
@@ -97,7 +102,6 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 @Override public void onBeginningOfSpeech() {}
-                @Override public void onRmsChanged(float rmsdB) {}
                 @Override public void onBufferReceived(byte[] buffer) {}
                 @Override public void onEndOfSpeech() {}
 
