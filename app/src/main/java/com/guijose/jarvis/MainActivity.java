@@ -10,7 +10,6 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -23,16 +22,15 @@ public class MainActivity extends AppCompatActivity {
 
     private SpeechRecognizer speechRecognizer;
     private TextToSpeech textToSpeech;
-    private Button ouvirButton;
+    private ParticleView particleView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         try {
-            ouvirButton = new Button(this);
-            ouvirButton.setText("Ouvir");
-            setContentView(ouvirButton);
+            particleView = new ParticleView(this);
+            setContentView(particleView);
 
             textToSpeech = new TextToSpeech(this, status -> {
                 if (status == TextToSpeech.SUCCESS) {
@@ -47,12 +45,12 @@ public class MainActivity extends AppCompatActivity {
             speechRecognizer.setRecognitionListener(new RecognitionListener() {
                 @Override
                 public void onReadyForSpeech(Bundle params) {
-                    ouvirButton.setText("Ouvindo...");
+                    particleView.setOuvindo(true);
                 }
 
                 @Override
                 public void onResults(Bundle results) {
-                    ouvirButton.setText("Ouvir");
+                    particleView.setOuvindo(false);
                     ClapService.retomarEscuta();
                     ArrayList<String> matches = results.getStringArrayList(
                             SpeechRecognizer.RESULTS_RECOGNITION);
@@ -67,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void onEndOfSpeech() {}
 
                 @Override public void onError(int error) {
-                    ouvirButton.setText("Ouvir");
+                    particleView.setOuvindo(false);
                     ClapService.retomarEscuta();
                     Toast.makeText(MainActivity.this,
                             "Erro no reconhecimento: " + error, Toast.LENGTH_LONG).show();
@@ -77,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void onEvent(int eventType, Bundle params) {}
             });
 
-            ouvirButton.setOnClickListener(v -> iniciarEscuta());
+            particleView.setOnClickListener(v -> iniciarEscuta());
 
             verificarPermissoesEIniciarServico();
 
