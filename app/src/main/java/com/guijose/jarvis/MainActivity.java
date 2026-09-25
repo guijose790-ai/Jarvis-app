@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
         ClapService.pausarEscuta();
         HashMap<String, String> params = new HashMap<>();
         params.put(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "saudacao");
-        textToSpeech.speak("O que deseja, senhor Guilherme?", TextToSpeech.QUEUE_FLUSH, null, params);
+        textToSpeech.speak("O que deseja, senhor Guilherme?", TextToSpeech.QUEUE_FLUSH, params);
     }
 
     private void verificarPermissoesEIniciarServico() {
