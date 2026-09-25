@@ -24,6 +24,16 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.io.IOException;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -31,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech textToSpeech;
     private ParticleView particleView;
     private boolean textToSpeechPronto = false;
+    private final OkHttpClient httpClient = new OkHttpClient();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
                     for (Voice voz : textToSpeech.getVoices()) {
                         if (voz.getLocale().getLanguage().equals("pt")
                                 && (voz.getName().toLowerCase().contains("male")
-                                    || voz.getName().toLowerCase().contains("masculin"))) {
+                                || voz.getName().toLowerCase().contains("masculin"))) {
                             textToSpeech.setVoice(voz);
                             break;
                         }
@@ -140,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
         ClapService.pausarEscuta();
         HashMap<String, String> params = new HashMap<>();
         params.put(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "saudacao");
-        textToSpeech.speak("O que deseja, senhor Guilherme?", TextToSpeech.QUEUE_FLUSH, params);
+        textToSpeech.speak("O que deseja, senhor Guilherme?", TextToSpeech.QUEUE_FLUSH, null, params);
     }
 
     private void verificarPermissoesEIniciarServico() {
@@ -237,7 +248,47 @@ public class MainActivity extends AppCompatActivity {
             }
 
         } else {
-            falar("Não entendi o comando: " + texto);
+            perguntarGemini(texto);
+        }
+    }
+
+    private void perguntarGemini(String texto) {
+        String apiKey = BuildConfig.GEMINI_API_KEY;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=" + apiKey;
+
+        try {
+            JSONObject part = new JSONObject().put("text", texto);
+            JSONObject content = new JSONObject().put("parts", new JSONArray().put(part));
+            JSONObject json = new JSONObject().put("contents", new JSONArray().put(content));
+
+            RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json"));
+            Request request = new Request.Builder().url(url).post(body).build();
+
+            httpClient.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> falar("Não consegui pensar nisso agora, senhor Guilherme."));
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    try {
+                        String respostaBruta = response.body().string();
+                        JSONObject obj = new JSONObject(respostaBruta);
+                        String respostaTexto = obj.getJSONArray("candidates")
+                                .getJSONObject(0)
+                                .getJSONObject("content")
+                                .getJSONArray("parts")
+                                .getJSONObject(0)
+                                .getString("text");
+                        runOnUiThread(() -> falar(respostaTexto));
+                    } catch (Exception e) {
+                        runOnUiThread(() -> falar("Recebi uma resposta estranha, senhor Guilherme."));
+                    }
+                }
+            });
+        } catch (Exception e) {
+            falar("Erro ao montar a pergunta para a inteligência artificial.");
         }
     }
 
